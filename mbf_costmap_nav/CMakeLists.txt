@@ -23,6 +23,7 @@ find_package(Boost COMPONENTS thread chrono REQUIRED)
 # dynamic reconfigure
 generate_dynamic_reconfigure_options(
   cfg/MoveBaseFlex.cfg
+  DEPENDS ${mbf_abstract_nav_DIR}/src/mbf_abstract_nav/__init__.py
 )
 
 set(MBF_NAV_CORE_WRAPPER_LIB mbf_nav_core_wrapper)
