@@ -48,10 +48,11 @@ CostmapControllerExecution::CostmapControllerExecution(
     const ros::Publisher &vel_pub,
     const ros::Publisher &goal_pub,
     const TFPtr &tf_listener_ptr,
+    const mbf_abstract_nav::RobotInformation &robot_info,
     const CostmapWrapper::Ptr &costmap_ptr,
     const MoveBaseFlexConfig &config)
       : AbstractControllerExecution(controller_name, controller_ptr, vel_pub, goal_pub,
-                                    tf_listener_ptr, toAbstract(config)),
+                                    tf_listener_ptr, robot_info, toAbstract(config)),
         costmap_ptr_(costmap_ptr)
 {
   ros::NodeHandle private_nh("~");

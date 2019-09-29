@@ -55,15 +55,16 @@ namespace mbf_costmap_nav
 
 
 CostmapNavigationServer::CostmapNavigationServer(const TFPtr &tf_listener_ptr) :
-  AbstractNavigationServer(tf_listener_ptr),
+  global_costmap_ptr_(new CostmapWrapper("global_costmap", tf_listener_ptr_)),
+  local_costmap_ptr_(new CostmapWrapper("local_costmap", tf_listener_ptr_)),
+  AbstractNavigationServer(tf_listener_ptr,
+                           global_costmap_ptr_->getGlobalFrameID(), global_costmap_ptr_->getBaseFrameID()),
   recovery_plugin_loader_("mbf_costmap_core", "mbf_costmap_core::CostmapRecovery"),
   nav_core_recovery_plugin_loader_("nav_core", "nav_core::RecoveryBehavior"),
   controller_plugin_loader_("mbf_costmap_core", "mbf_costmap_core::CostmapController"),
   nav_core_controller_plugin_loader_("nav_core", "nav_core::BaseLocalPlanner"),
   planner_plugin_loader_("mbf_costmap_core", "mbf_costmap_core::CostmapPlanner"),
   nav_core_planner_plugin_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
-  global_costmap_ptr_(new CostmapWrapper("global_costmap", tf_listener_ptr_)),
-  local_costmap_ptr_(new CostmapWrapper("local_costmap", tf_listener_ptr_)),
   setup_reconfigure_(false)
 {
   // advertise services and current goal topic
@@ -112,6 +113,7 @@ mbf_abstract_nav::AbstractControllerExecution::Ptr CostmapNavigationServer::newC
       vel_pub_,
       goal_pub_,
       tf_listener_ptr_,
+      robot_info_,
       local_costmap_ptr_,
       last_config_);
 }
@@ -381,7 +383,7 @@ bool CostmapNavigationServer::callServiceCheckPointCost(mbf_msgs::CheckPoint::Re
 
   geometry_msgs::PointStamped point;
   if (! mbf_utility::transformPoint(*tf_listener_ptr_, costmap_frame, request.point.header.stamp,
-                                     ros::Duration(0.5), request.point, global_frame_, point))
+                                     ros::Duration(0.5), request.point, robot_info_.getGlobalFrame(), point))
   {
     ROS_ERROR_STREAM("Transform target point to " << costmap_name << " frame '" << costmap_frame << "' failed");
     return false;
@@ -460,7 +462,8 @@ bool CostmapNavigationServer::callServiceCheckPoseCost(mbf_msgs::CheckPose::Requ
   geometry_msgs::PoseStamped pose;
   if (request.current_pose)
   {
-    if (! mbf_utility::getRobotPose(*tf_listener_ptr_, robot_frame_, costmap_frame, ros::Duration(0.5), pose))
+    if (! mbf_utility::getRobotPose(*tf_listener_ptr_, robot_info_.getRobotFrame(), costmap_frame, ros::Duration(0.5),
+                                    pose))
     {
       ROS_ERROR_STREAM("Get robot pose on " << costmap_name << " frame '" << costmap_frame << "' failed");
       return false;
@@ -469,7 +472,7 @@ bool CostmapNavigationServer::callServiceCheckPoseCost(mbf_msgs::CheckPose::Requ
   else
   {
     if (! mbf_utility::transformPose(*tf_listener_ptr_, costmap_frame, request.pose.header.stamp,
-                                     ros::Duration(0.5), request.pose, global_frame_, pose))
+                                     ros::Duration(0.5), request.pose, robot_info_.getGlobalFrame(), pose))
     {
       ROS_ERROR_STREAM("Transform target pose to " << costmap_name << " frame '" << costmap_frame << "' failed");
       return false;
@@ -607,7 +610,7 @@ bool CostmapNavigationServer::callServiceCheckPathCost(mbf_msgs::CheckPath::Requ
     response.last_checked = i;
 
     if (! mbf_utility::transformPose(*tf_listener_ptr_, costmap_frame, request.path.header.stamp,
-                                     ros::Duration(0.5), request.path.poses[i], global_frame_, pose))
+                                     ros::Duration(0.5), request.path.poses[i], robot_info_.getGlobalFrame(), pose))
     {
       ROS_ERROR_STREAM("Transform target pose to " << costmap_name << " frame '" << costmap_frame << "' failed");
       return false;

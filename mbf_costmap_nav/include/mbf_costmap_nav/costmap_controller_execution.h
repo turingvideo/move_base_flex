@@ -41,6 +41,7 @@
 #ifndef MBF_COSTMAP_NAV__COSTMAP_CONTROLLER_EXECUTION_H_
 #define MBF_COSTMAP_NAV__COSTMAP_CONTROLLER_EXECUTION_H_
 
+#include <mbf_abstract_nav/robot_information.h>
 #include <mbf_abstract_nav/abstract_controller_execution.h>
 #include <mbf_costmap_core/costmap_controller.h>
 
@@ -77,6 +78,7 @@ public:
       const ros::Publisher &vel_pub,
       const ros::Publisher &goal_pub,
       const TFPtr &tf_listener_ptr,
+      const mbf_abstract_nav::RobotInformation &robot_info,
       const CostmapWrapper::Ptr &costmap_ptr,
       const MoveBaseFlexConfig &config);
 

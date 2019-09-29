@@ -52,9 +52,10 @@ namespace mbf_abstract_nav
       const ros::Publisher& vel_pub,
       const ros::Publisher& goal_pub,
       const TFPtr &tf_listener_ptr,
+      const RobotInformation &robot_info,
       const MoveBaseFlexConfig &config) :
     AbstractExecutionBase(name),
-      controller_(controller_ptr), tf_listener_ptr(tf_listener_ptr), state_(INITIALIZED),
+      controller_(controller_ptr), tf_listener_ptr(tf_listener_ptr), robot_info_(robot_info), state_(INITIALIZED),
       moving_(false), max_retries_(0), patience_(0), vel_pub_(vel_pub), current_goal_pub_(goal_pub),
       calling_duration_(boost::chrono::microseconds(static_cast<int>(1e6 / DEFAULT_CONTROLLER_FREQUENCY)))
   {
@@ -62,8 +63,6 @@ namespace mbf_abstract_nav
     ros::NodeHandle private_nh("~");
 
     // non-dynamically reconfigurable parameters
-    private_nh.param("robot_frame", robot_frame_, std::string("base_link"));
-    private_nh.param("map_frame", global_frame_, std::string("map"));
     private_nh.param("mbf_tolerance_check", mbf_tolerance_check_, false);
     private_nh.param("dist_tolerance", dist_tolerance_, 0.1);
     private_nh.param("angle_tolerance", angle_tolerance_, M_PI / 18.0);
@@ -157,24 +156,6 @@ namespace mbf_abstract_nav
   }
 
 
-  bool AbstractControllerExecution::computeRobotPose()
-  {
-    bool tf_success = mbf_utility::getRobotPose(*tf_listener_ptr, robot_frame_, global_frame_,
-                                                ros::Duration(tf_timeout_), robot_pose_);
-    // would be 0 if not, as we ask tf listener for the last pose available
-    robot_pose_.header.stamp = ros::Time::now();
-    if (!tf_success)
-    {
-      ROS_ERROR_STREAM("Could not get the robot pose in the global frame. - robot frame: \""
-                           << robot_frame_ << "\"   global frame: \"" << global_frame_ << std::endl);
-      message_ = "Could not get the robot pose";
-      outcome_ = mbf_msgs::ExePathResult::TF_ERROR;
-      return false;
-    }
-    return true;
-  }
-
-
   uint32_t AbstractControllerExecution::computeVelocityCmd(const geometry_msgs::PoseStamped& robot_pose,
                                                            const geometry_msgs::TwistStamped& robot_velocity,
                                                            geometry_msgs::TwistStamped& vel_cmd,
@@ -225,9 +206,11 @@ namespace mbf_abstract_nav
   bool AbstractControllerExecution::reachedGoalCheck()
   {
     // check whether the controller plugin returns goal reached or if mbf should check for goal reached.
+    geometry_msgs::PoseStamped robot_pose;
+    robot_info_.getRobotPose(robot_pose);
     return controller_->isGoalReached(dist_tolerance_, angle_tolerance_) || (mbf_tolerance_check_
-        && mbf_utility::distance(robot_pose_, plan_.back()) < dist_tolerance_
-        && mbf_utility::angle(robot_pose_, plan_.back()) < angle_tolerance_);
+        && mbf_utility::distance(robot_pose, plan_.back()) < dist_tolerance_
+        && mbf_utility::angle(robot_pose, plan_.back()) < angle_tolerance_);
   }
 
   bool AbstractControllerExecution::cancel()
@@ -308,8 +291,9 @@ namespace mbf_abstract_nav
           current_goal_pub_.publish(plan.back());
         }
 
-        // compute robot pose and store it in robot_pose_
-        computeRobotPose();
+        // compute robot pose to check how close from goal we are
+        geometry_msgs::PoseStamped robot_pose;
+        robot_info_.getRobotPose(robot_pose);
 
         // ask planner if the goal is reached
         if (reachedGoalCheck())
@@ -333,7 +317,7 @@ namespace mbf_abstract_nav
           // call plugin to compute the next velocity command
           geometry_msgs::TwistStamped cmd_vel_stamped;
           geometry_msgs::TwistStamped robot_velocity;   // TODO pass current velocity to the plugin!
-          outcome_ = computeVelocityCmd(robot_pose_, robot_velocity, cmd_vel_stamped, message_ = "");
+          outcome_ = computeVelocityCmd(robot_pose, robot_velocity, cmd_vel_stamped, message_ = "");
 
           if (outcome_ < 10)
           {

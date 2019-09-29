@@ -54,6 +54,7 @@
 #include <mbf_abstract_core/abstract_controller.h>
 #include <mbf_utility/types.h>
 
+#include "mbf_abstract_nav/robot_information.h"
 #include "mbf_abstract_nav/MoveBaseFlexConfig.h"
 #include "mbf_abstract_nav/abstract_execution_base.h"
 
@@ -93,6 +94,7 @@ namespace mbf_abstract_nav
         const ros::Publisher& vel_pub,
         const ros::Publisher& goal_pub,
         const TFPtr &tf_listener_ptr,
+        const RobotInformation &robot_info,
         const MoveBaseFlexConfig &config);
 
     /**
@@ -258,12 +260,6 @@ namespace mbf_abstract_nav
     bool reachedGoalCheck();
 
     /**
-     * @brief Computes the robot pose;
-     * @return true if the robot pose has been computed successfully, false otherwise.
-     */
-    bool computeRobotPose();
-
-    /**
      * @brief Sets the controller state. This method makes the communication of the state thread safe.
      * @param state The current controller state.
      */
@@ -305,12 +301,6 @@ namespace mbf_abstract_nav
     //! the duration which corresponds with the controller frequency.
     boost::chrono::microseconds calling_duration_;
 
-    //! the frame of the robot, which will be used to determine its position.
-    std::string robot_frame_;
-
-    //! the global frame the robot is controlling in.
-    std::string global_frame_;
-
     //! publisher for the current velocity command
     ros::Publisher vel_pub_;
 
@@ -338,8 +328,8 @@ namespace mbf_abstract_nav
     //! angle tolerance to the given goal pose
     double angle_tolerance_;
 
-    //! current robot pose;
-    geometry_msgs::PoseStamped robot_pose_;
+    //! current robot state
+    const RobotInformation &robot_info_;
 
   };
 
